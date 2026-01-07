@@ -17,6 +17,7 @@
       kypo_user_access_username: user
       kypo_user_access_password: Password123
       kypo_user_access_sudo: True
+      kypo_user_access_ssh_public_key: "{{ playbook_dir }}/ssh_keys/user.pub"
     - role: attacker
     - role: chrony
 
