@@ -1,14 +1,7 @@
 ---
 # Basic configuration of all host devices
 
-- name: Install net-tools
-  apt:
-    name: net-tools
-
-- name: Install unzip
-  apt:
-    name: unzip
-
+# 1) Fix DNS and refresh package cache first
 - name: Fix DNS config
   copy:
     dest: /etc/resolv.conf
@@ -39,3 +32,14 @@
   fail:
     msg: "DNS resolution is not working"
   when: dns_check.rc != 0
+
+# 2) Only now install other packages
+- name: Install net-tools
+  apt:
+    name: net-tools
+    state: present
+
+- name: Install unzip
+  apt:
+    name: unzip
+    state: present
