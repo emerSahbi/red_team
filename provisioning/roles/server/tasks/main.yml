@@ -31,7 +31,7 @@
     update_cache: no
   ignore_errors: true
   failed_when: false
-  
+
 - name: Ensure /etc/vsftpd directory exists
   file:
     path: /etc/vsftpd
@@ -97,10 +97,13 @@
     state: present
   notify: Restart SSH
 
-- name: Restart services
+- name: Restart services (best effort)
   service:
     name: "{{ item }}"
     state: restarted
-  with_items:
+  loop:
     - vsftpd
     - ssh
+  ignore_errors: true
+  failed_when: false
+
