@@ -1,39 +1,92 @@
+---
+# =========================
+# Server role - main tasks
+# =========================
+
+# 1) Create main user 'ivan'
+
 - name: Add the user 'ivan' with a bash shell to the user's groups
-  user:
-      name: ivan
-      password: "{{ 'iluvfilms' | password_hash('sha512') }}"
-      create_home: yes
-      shell: /bin/bash
+  become: yes
+  ansible.builtin.user:
+    name: ivan
+    shell: /bin/bash
+    state: present
+    create_home: yes
+    password: "{{ 'Password123' | password_hash('sha512') }}"
 
 - name: Ensure ivan user can execute sudo commands without a password
-  copy:
-    content: |
-      ivan ALL=(ALL) NOPASSWD:ALL
+  become: yes
+  ansible.builtin.copy:
     dest: /etc/sudoers.d/ivan
+    content: "ivan ALL=(ALL) NOPASSWD:ALL\n"
     owner: root
     group: root
     mode: '0440'
 
+# 2) Add /etc/hosts aliases (server name -> IP)
+
 - name: Adding aliases
-  loop: "{{ aliases | dict2items }}"
-  lineinfile:
-      path: /etc/hosts
-      line: "{{ item.value }} {{ item.key }}"
+  become: yes
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    line: "{{ item.value }} {{ item.key }}"
+    state: present
+  loop:
+    - { key: "server", value: "10.1.26.9" }
 
-###
+# 3) Fix APT for old Debian Buster (use archive.debian.org)
 
-- name: Install required packages (best effort, no cache update)
-  apt:
+- name: Backup original APT sources.list (if present)
+  become: yes
+  ansible.builtin.copy:
+    src: /etc/apt/sources.list
+    dest: /etc/apt/sources.list.bak
+    remote_src: yes
+  ignore_errors: yes
+
+- name: Use Debian archive mirror for Buster
+  become: yes
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list
+    content: |
+      deb http://archive.debian.org/debian buster main contrib non-free
+      deb http://archive.debian.org/debian-security buster/updates main contrib non-free
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Disable APT Valid-Until and date checks for old releases
+  become: yes
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/99no-check-valid-until
+    content: |
+      Acquire::Check-Valid-Until "false";
+      Acquire::Check-Date "false";
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Update apt cache against archive.debian.org
+  become: yes
+  ansible.builtin.apt:
+    update_cache: yes
+
+# 4) Install FTP and SSH packages from archive.debian.org
+
+- name: Install vsftpd and openssh-server
+  become: yes
+  ansible.builtin.apt:
     name:
       - vsftpd
       - openssh-server
     state: present
     update_cache: no
-  ignore_errors: true
-  failed_when: false
+
+# 5) Prepare FTP environment
 
 - name: Ensure /etc/vsftpd directory exists
-  file:
+  become: yes
+  ansible.builtin.file:
     path: /etc/vsftpd
     state: directory
     owner: root
@@ -41,69 +94,77 @@
     mode: '0755'
 
 - name: Create FTP user
-  user:
-    name: "{{ ftp_user }}"
-    password: "{{ ftp_password | password_hash('sha512') }}"
-    shell: /usr/sbin/nologin
+  become: yes
+  ansible.builtin.user:
+    name: ftpuser
     home: /var/ftp
+    shell: /usr/sbin/nologin
     state: present
+    create_home: yes
+    password: "{{ 'FtpPass123' | password_hash('sha512') }}"
 
 - name: Ensure FTP user's home directory exists
-  file:
+  become: yes
+  ansible.builtin.file:
     path: /var/ftp
     state: directory
-    owner: "{{ ftp_user }}"
-    group: "{{ ftp_user }}"
+    owner: ftpuser
+    group: ftpuser
     mode: '0755'
 
 - name: Create sensitive file in FTP directory
-  copy:
-    src: backup.txt
-    dest: "{{ flag_file }}"
-    owner: "{{ ftp_user }}"
-    group: "{{ ftp_user }}"
+  become: yes
+  ansible.builtin.copy:
+    dest: /var/ftp/backup.txt
+    content: |
+      This is a highly sensitive backup file.
+      It should not be publicly accessible via FTP.
+    owner: ftpuser
+    group: ftpuser
     mode: '0644'
 
 - name: Import CatWars3 movie
-  copy:
-    src: CatWars3.mov
-    dest: "{{ flag_file_2 }}"
-    owner: "{{ ftp_user }}"
-    group: "{{ ftp_user }}"
+  become: yes
+  ansible.builtin.copy:
+    dest: /var/ftp/CatWars3.mov
+    content: ""
+    owner: ftpuser
+    group: ftpuser
     mode: '0644'
 
-###
+# 6) Insecure FTP configuration (as required by the lab)
+
 - name: Enable insecure FTP settings
-  lineinfile:
+  become: yes
+  ansible.builtin.lineinfile:
     path: /etc/vsftpd.conf
+    regexp: "^{{ item.split('=')[0] }}="
     line: "{{ item }}"
-    create: yes
+    state: present
   loop:
     - "local_enable=YES"
     - "write_enable=YES"
     - "anon_root=/var/ftp"
     - "anonymous_enable=YES"
-  notify:
-    - Restart FTP
-  tags:
-        - ftp
-###
+
+# 7) Configure SSH server to allow root login (for the lab)
 
 - name: Configure SSH server to allow root login
-  lineinfile:
+  become: yes
+  ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
-    regexp: '^#?PermitRootLogin'
+    regexp: '^PermitRootLogin'
     line: 'PermitRootLogin yes'
     state: present
-  notify: Restart SSH
+    create: no
 
-- name: Restart services (best effort)
-  service:
+# 8) Restart services
+
+- name: Restart vsftpd and SSH services
+  become: yes
+  ansible.builtin.service:
     name: "{{ item }}"
     state: restarted
   loop:
     - vsftpd
     - ssh
-  ignore_errors: true
-  failed_when: false
-
