@@ -22,14 +22,16 @@
 
 ###
 
-- name: Install required packages
+- name: Install required packages (best effort, no cache update)
   apt:
-    name: 
+    name:
       - vsftpd
       - openssh-server
     state: present
-    update_cache: yes
-
+    update_cache: no
+  ignore_errors: true
+  failed_when: false
+  
 - name: Ensure /etc/vsftpd directory exists
   file:
     path: /etc/vsftpd
