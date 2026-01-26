@@ -1,170 +1,46 @@
 ---
-# =========================
-# Server role - main tasks
-# =========================
-
-# 1) Create main user 'ivan'
-
-- name: Add the user 'ivan' with a bash shell to the user's groups
-  become: yes
-  ansible.builtin.user:
-    name: ivan
-    shell: /bin/bash
-    state: present
-    create_home: yes
-    password: "{{ 'Password123' | password_hash('sha512') }}"
-
-- name: Ensure ivan user can execute sudo commands without a password
+- name: Fix DNS config
   become: yes
   ansible.builtin.copy:
-    dest: /etc/sudoers.d/ivan
-    content: "ivan ALL=(ALL) NOPASSWD:ALL\n"
-    owner: root
-    group: root
-    mode: '0440'
-
-# 2) Add /etc/hosts aliases (server name -> IP)
-
-- name: Adding aliases
-  become: yes
-  ansible.builtin.lineinfile:
-    path: /etc/hosts
-    line: "{{ item.value }} {{ item.key }}"
-    state: present
-  loop:
-    - { key: "server", value: "10.1.26.9" }
-
-# 3) Fix APT for old Debian Buster (use archive.debian.org)
-
-- name: Backup original APT sources.list (if present)
-  become: yes
-  ansible.builtin.copy:
-    src: /etc/apt/sources.list
-    dest: /etc/apt/sources.list.bak
-    remote_src: yes
-  ignore_errors: yes
-
-- name: Use Debian archive mirror for Buster
-  become: yes
-  ansible.builtin.copy:
-    dest: /etc/apt/sources.list
+    dest: /etc/resolv.conf
     content: |
-      deb http://archive.debian.org/debian buster main contrib non-free
-      deb http://archive.debian.org/debian-security buster/updates main contrib non-free
+      nameserver 8.8.8.8
+      nameserver 1.1.1.1
     owner: root
     group: root
     mode: '0644'
 
-- name: Disable APT Valid-Until and date checks for old releases
-  become: yes
-  ansible.builtin.copy:
-    dest: /etc/apt/apt.conf.d/99no-check-valid-until
-    content: |
-      Acquire::Check-Valid-Until "false";
-      Acquire::Check-Date "false";
-    owner: root
-    group: root
-    mode: '0644'
-
-- name: Update apt cache against archive.debian.org
+# We TRY to update apt, but we don't fail the play if the repo is dead
+- name: Retry apt update with fixed DNS (best effort)
   become: yes
   ansible.builtin.apt:
     update_cache: yes
+  register: apt_update_result
+  failed_when: false
 
-# 4) Install FTP and SSH packages from archive.debian.org
-
-- name: Install vsftpd and openssh-server
+- name: Install net-tools (best effort)
   become: yes
   ansible.builtin.apt:
-    name:
-      - vsftpd
-      - openssh-server
+    name: net-tools
     state: present
     update_cache: no
+  register: net_tools_result
+  failed_when: false
 
-# 5) Prepare FTP environment
-
-- name: Ensure /etc/vsftpd directory exists
+- name: Install unzip (best effort)
   become: yes
-  ansible.builtin.file:
-    path: /etc/vsftpd
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
-
-- name: Create FTP user
-  become: yes
-  ansible.builtin.user:
-    name: ftpuser
-    home: /var/ftp
-    shell: /usr/sbin/nologin
+  ansible.builtin.apt:
+    name: unzip
     state: present
-    create_home: yes
-    password: "{{ 'FtpPass123' | password_hash('sha512') }}"
+    update_cache: no
+  register: unzip_result
+  failed_when: false
 
-- name: Ensure FTP user's home directory exists
+- name: Install dnsutils (best effort)
   become: yes
-  ansible.builtin.file:
-    path: /var/ftp
-    state: directory
-    owner: ftpuser
-    group: ftpuser
-    mode: '0755'
-
-- name: Create sensitive file in FTP directory
-  become: yes
-  ansible.builtin.copy:
-    dest: /var/ftp/backup.txt
-    content: |
-      This is a highly sensitive backup file.
-      It should not be publicly accessible via FTP.
-    owner: ftpuser
-    group: ftpuser
-    mode: '0644'
-
-- name: Import CatWars3 movie
-  become: yes
-  ansible.builtin.copy:
-    dest: /var/ftp/CatWars3.mov
-    content: ""
-    owner: ftpuser
-    group: ftpuser
-    mode: '0644'
-
-# 6) Insecure FTP configuration (as required by the lab)
-
-- name: Enable insecure FTP settings
-  become: yes
-  ansible.builtin.lineinfile:
-    path: /etc/vsftpd.conf
-    regexp: "^{{ item.split('=')[0] }}="
-    line: "{{ item }}"
+  ansible.builtin.apt:
+    name: dnsutils
     state: present
-  loop:
-    - "local_enable=YES"
-    - "write_enable=YES"
-    - "anon_root=/var/ftp"
-    - "anonymous_enable=YES"
-
-# 7) Configure SSH server to allow root login (for the lab)
-
-- name: Configure SSH server to allow root login
-  become: yes
-  ansible.builtin.lineinfile:
-    path: /etc/ssh/sshd_config
-    regexp: '^PermitRootLogin'
-    line: 'PermitRootLogin yes'
-    state: present
-    create: no
-
-# 8) Restart services
-
-- name: Restart vsftpd and SSH services
-  become: yes
-  ansible.builtin.service:
-    name: "{{ item }}"
-    state: restarted
-  loop:
-    - vsftpd
-    - ssh
+    update_cache: no
+  register: dnsutils_result
+  failed_when: false
