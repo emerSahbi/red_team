@@ -1,17 +1,7 @@
 - name: sandbox-logging
-  src: https://github.com/cyberrangecz/ansible-role-sandbox-logging.git
+  src: https://gitlab.ics.muni.cz/muni-kypo/ansible-roles/sandbox-logging.git
   scm: git
-  version: v1.0.0
-
-- name: user-access
-  src: https://github.com/cyberrangecz/ansible-role-user-access.git
-  scm: git
-  version: v1.0.0
-
-- name: disable-qxl
-  src: https://github.com/cyberrangecz/ansible-role-disable-qxl.git
-  scm: git
-  version: v1.0.0
+  version: 5431051c
 
 - name: chrony
   src: https://gitlab.ics.muni.cz/muni-kypo/ansible-roles/chrony.git
