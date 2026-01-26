@@ -3,28 +3,28 @@ name: red-team
 hosts:
   - name: attacker
     base_box: 
-      image: ubuntu-noble-x86_64
-      man_user: ubuntu
-    flavor: standard.small
+      image: kali
+      mgmt_user: debian
+    flavor: m1.small
 
   - name: server
     base_box:
-      image: ubuntu-noble-x86_64
-      man_user: ubuntu
-    flavor: standard.small
+      image: kali
+      mgmt_user: debian
+    flavor: m1.small
 
   - name: client
     base_box: 
-      image: ubuntu-noble-x86_64
-      man_user: ubuntu
-    flavor: standard.small
+      image: kali
+      mgmt_user: debian
+    flavor: m1.small
 
 routers:
   - name: router
     base_box:
       image: debian-12-x86_64
-      man_user: debian
-    flavor: standard.small
+      mgmt_user: debian
+    flavor: m1.small
 
 wan:
   name: internet-connection
