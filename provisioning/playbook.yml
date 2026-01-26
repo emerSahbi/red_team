@@ -1,24 +1,14 @@
 ---
-# 0) Disable QXL where needed (same behavior as working lab)
-- name: disable qxl
-  hosts:
-    - routers
-    - hosts
-  gather_facts: yes
-  become: yes
-  tasks:
-    - include_role:
-        name: disable-qxl
-      when: ansible_os_family == 'Debian'
+# Basic configuration of all defined devices
 
-# 1) Common tools
+# Installation of common tools at all hosts
 - name: Configuring hosts
   hosts: hosts
   become: yes
   roles:
     - hosts
 
-# 2) Attacker
+# Installation and configuration of each host
 - name: Configure attacker
   hosts: attacker
   become: true
@@ -31,26 +21,18 @@
     - role: attacker
     - role: chrony
 
-# 3) Client (add user-access if needed)
 - name: Configure client
   hosts: client
   become: true
   roles:
-    - role: kypo-user-access
-      kypo_user_access_username: user
-      kypo_user_access_password: Password123
-      kypo_user_access_sudo: True
-      kypo_user_access_ssh_public_key: "{{ playbook_dir }}/ssh_keys/user.pub"
     - role: client
 
-# 4) Server
 - name: Configure server
   hosts: server
   become: true
   roles:
     - role: server
 
-# 5) Logging (THIS is what your current playbook is missing)
 - name: setup hosts logging roles
   hosts:
     - routers
@@ -59,6 +41,3 @@
   vars:
     sandbox_name: junior-hacker-local
     central_syslog_ip: 78.128.251.179
-  roles:
-    - role: sandbox-logging
-      slf_destination_port: 514
