@@ -35,8 +35,8 @@
 
 - name: setup hosts logging roles
   hosts:
-    - routers
-    - hosts
+      - routers
+      - hosts
   become: yes
   vars:
     sandbox_name: junior-hacker-local
