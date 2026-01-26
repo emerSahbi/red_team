@@ -12,3 +12,19 @@
   src: https://github.com/cyberrangecz/ansible-role-disable-qxl.git
   scm: git
   version: v1.0.0
+
+- name: chrony
+  src: https://gitlab.ics.muni.cz/muni-kypo/ansible-roles/chrony.git
+  scm: git
+  version: 1.0.1
+
+
+- name: hosts-aliases
+  src: https://gitlab.ics.muni.cz/muni-kypo/ansible-roles/hosts-aliases.git
+  scm: git
+  version: 1.0.0
+
+- name: kypo-user-access
+  src: https://gitlab.ics.muni.cz/muni-kypo-crp/backend-python/ansible-networking-stage/kypo-user-access.git
+  scm: git
+  version: 39a4f935
